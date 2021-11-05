@@ -26,7 +26,8 @@ module Imdb
     private
 
     def gzip_reader(file_url)
-      Zlib::GzipReader.new(URI.open(file_url))
+      gzipfile = URI.open(file_url)
+      Zlib::GzipReader.new(gzipfile)
     end
   end
 end
