@@ -60,7 +60,7 @@ module Imdb
       genres.map do |genre|
         {
           imdb_id: movie_data[0],
-          name: genre
+          name: genres.split("\n").first
         }
       end
     end
