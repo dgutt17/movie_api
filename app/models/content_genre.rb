@@ -1,0 +1,2 @@
+class ContentGenre < ApplicationRecord
+end
