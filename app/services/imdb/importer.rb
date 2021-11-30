@@ -2,28 +2,28 @@ require 'open-uri'
 
 module Imdb
   class Importer
-    attr_reader :ratings_file, :movies_file, :genres, :movie_genres, :ratings_hash
-    attr_reader :movies, :ratings, :movie_ids, :genre_ids, :movie_genres_hash
+    attr_reader :ratings_file, :content_file, :genres, :content_genres, :ratings_hash
+    attr_reader :content, :ratings, :content_ids, :genre_ids, :content_genres_hash
 
     def initialize
       @ratings_file = gzip_reader(ENV['RATINGS_FILE_URL'])
-      @movies_file = gzip_reader(ENV['MOVIES_FILE_URL'])
+      @content_file = gzip_reader(ENV['CONTENT_FILE_URL'])
       @genres = Set.new
-      @movie_genres_hash = Hash.new
-      @movie_genres = Array.new
-      @movies = Array.new
+      @content_genres_hash = Hash.new
+      @content_genres = Array.new
+      @content = Array.new
       @ratings_hash = Hash.new
       @ratings = Array.new
     end
 
     def run
       creating_ratings_hash
-      create_movies_and_genre_array
-      import_movies
+      create_content_and_genre_array
+      import_content
       import_genres
-      create_ratings_and_movie_genres_array
+      create_ratings_and_content_genres_array
       import_ratings
-      import_movie_genre_joins
+      import_content_genre_joins
     end
 
     private
@@ -33,13 +33,13 @@ module Imdb
       Zlib::GzipReader.new(gzipfile)
     end
 
-    def create_movie_hash(movie_data)
+    def create_content_hash(content_data)
       {
-        imdb_id: movie_data[0],
-        title: movie_data[2],
-        release_year: movie_data[5] == '\N' ? nil : Date.parse("1-1-#{movie_data[5]}"),
-        end_year: movie_data[6] == '\N' ? nil : Date.parse("1-1-#{movie_data[6]}"),
-        run_time: movie_data[7] == '\N' ? nil : movie_data[7].to_i
+        imdb_id: content_data[0],
+        title: content_data[2],
+        release_year: content_data[5] == '\N' ? nil : Date.parse("1-1-#{content_data[5]}"),
+        end_year: content_data[6] == '\N' ? nil : Date.parse("1-1-#{content_data[6]}"),
+        run_time: content_data[7] == '\N' ? nil : content_data[7].to_i
       }
     end
 
@@ -56,31 +56,31 @@ module Imdb
       end
     end
 
-    def create_movies_and_genre_array
-      puts "Printing Movies file"
+    def create_content_and_genre_array
+      puts "Printing content file"
       sleep(5)
-      movies_file.each_line do |row|
-        movie_data = row.split("\t")
-        puts "#{movie_data}"
-        ratings_data = ratings_hash[movie_data.first]
-        if ratings_data.present? && movie_data[4].to_i == 0 && valid_content_type?(movie_data[1])
-          movies << create_movie_hash(movie_data)
-          setup_genre_import(movie_data)
+      content_file.each_line do |row|
+        content_data = row.split("\t")
+        puts "#{content_data}"
+        ratings_data = ratings_hash[content_data.first]
+        if ratings_data.present? && content_data[4].to_i == 0 && valid_content_type?(content_data[1])
+          content << create_content_hash(content_data)
+          setup_genre_import(content_data)
         end
       end
     end
 
-    def setup_genre_import(movie_data)
-      new_genres = movie_data.last.split(',').map { |genre| genre.split("\n").first }
-      movie_genres_hash[movie_data[0]] = new_genres
+    def setup_genre_import(content_data)
+      new_genres = content_data.last.split(',').map { |genre| genre.split("\n").first }
+      content_genres_hash[content_data[0]] = new_genres
       new_genres.each { |genre| genres.add({name: genre}) }
     end
 
-    def import_movies
-      puts "Importing Movies"
+    def import_content
+      puts "Importing content"
       sleep(5)
-      results = Movie.import(movies)
-      @movie_ids = results.ids
+      results = Content.import(content)
+      @content_ids = results.ids
     end
 
     def import_genres
@@ -90,38 +90,38 @@ module Imdb
       @genre_ids = results.ids
     end
 
-    def imported_movies
-      @imported_movies ||= Movie.where(id: movie_ids)
+    def imported_content
+      @imported_content ||= Content.where(id: content_ids)
     end
 
-    def import_ratings_genre_movie_relation
-      imported_movies.each do |movie| 
-        ratings << ratings_hash[movie.imdb_id].merge({movie_id: movie.id})
+    def import_ratings_genre_content_relation
+      imported_content.each do |content| 
+        ratings << ratings_hash[content.imdb_id].merge({content_id: content.id})
       end
       ImdbRating.import(ratings)
     end
 
     def valid_content_type?(content_type)
-      content_type == 'movie' || content_type == 'tvSeries' || content_type == 'tvMiniSeries'
+      content_type == 'content' || content_type == 'tvSeries' || content_type == 'tvMiniSeries'
     end
 
-    def imported_movies
-      @imported_movies ||= Movie.where(id: movie_ids)
+    def imported_content
+      @imported_content ||= content.where(id: content_ids)
     end
 
     def imported_genres
       @imported_genres ||= Genre.where(id: genre_ids)
     end
 
-    def create_ratings_and_movie_genres_array
-      imported_movies.each do |movie| 
-        puts "Content: #{movie.title}"
-        rating_data = ratings_hash[movie.imdb_id]
-        rating = {movie_id: movie.id, rating: rating_data.first, total_votes: rating_data.last}
+    def create_ratings_and_content_genres_array
+      imported_content.each do |content| 
+        puts "Content: #{content.title}"
+        rating_data = ratings_hash[content.imdb_id]
+        rating = {content_id: content.id, rating: rating_data.first, total_votes: rating_data.last}
         ratings << rating
-        movie_genres_hash[movie.imdb_id].each do |genre|
+        content_genres_hash[content.imdb_id].each do |genre|
           genre_id = imported_genres.find {|g| g.name == genre}.id
-          movie_genres << {movie_id: movie.id, genre_id: genre_id}
+          content_genres << {content_id: content.id, genre_id: genre_id}
         end
       end
     end
@@ -132,10 +132,10 @@ module Imdb
       ImdbRating.import(ratings)
     end
 
-    def import_movie_genre_joins
-      puts "Importing Movie Genre Join table"
+    def import_content_genre_joins
+      puts "Importing Content Genre Join table"
       sleep(5)
-      MovieGenre.import(movie_genres)
+      ContentGenre.import(content_genres)
     end
   end
 end
