@@ -1,4 +1,5 @@
 class Content < ApplicationRecord
+  has_many :content_genres
   has_many :genres, through: :content_genres
   has_one :imdb_rating
 
