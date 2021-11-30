@@ -6,6 +6,7 @@ class CreateContents < ActiveRecord::Migration[6.1]
       t.date :end_year
       t.integer :run_time, null: false
       t.string :imdb_id, null: false
+      t.integer :content_type, null: false
       t.timestamps
     end
   end

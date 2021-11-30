@@ -17,13 +17,15 @@ module Imdb
     end
 
     def run
-      creating_ratings_hash
-      create_content_and_genre_array
-      import_content
-      import_genres
-      create_ratings_and_content_genres_array
-      import_ratings
-      import_content_genre_joins
+      ActiveRecord::Base.transaction do
+        creating_ratings_hash
+        create_content_and_genre_array
+        import_content
+        import_genres
+        create_ratings_and_content_genres_array
+        import_ratings
+        import_content_genre_joins
+      end
     end
 
     private
@@ -36,6 +38,7 @@ module Imdb
     def create_content_hash(content_data)
       {
         imdb_id: content_data[0],
+        content_type: content_type(content_data),
         title: content_data[2],
         release_year: content_data[5] == '\N' ? nil : Date.parse("1-1-#{content_data[5]}"),
         end_year: content_data[6] == '\N' ? nil : Date.parse("1-1-#{content_data[6]}"),
@@ -102,11 +105,11 @@ module Imdb
     end
 
     def valid_content_type?(content_type)
-      content_type == 'content' || content_type == 'tvSeries' || content_type == 'tvMiniSeries'
+      content_type == 'movie' || content_type == 'tvSeries' || content_type == 'tvMiniSeries'
     end
 
     def imported_content
-      @imported_content ||= content.where(id: content_ids)
+      @imported_content ||= Content.where(id: content_ids)
     end
 
     def imported_genres
@@ -136,6 +139,10 @@ module Imdb
       puts "Importing Content Genre Join table"
       sleep(5)
       ContentGenre.import(content_genres)
+    end
+
+    def content_type(content_data)
+      Content.content_types[content_data[1].underscore]
     end
   end
 end
