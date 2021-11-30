@@ -1,0 +1,2 @@
+class ContentMovie < ApplicationRecord
+end
