@@ -5,12 +5,14 @@ module RottenTomatoes
     attr_reader :content_array, :ratings_to_import
     def initialize
       @start_time = Time.now
-      @content_array = Content.where(title: 'The Departed')
+      @content_array = Content.all
       @ratings_to_import = Array.new
     end
 
     def run
       content_array.each do |content|
+        puts "Show: #{content.title}"
+        puts "Count: #{ratings_to_import.length}"
         ratings_hash = {}
         doc = html_document(content)
         score_board = doc.css('score-board').first
@@ -24,9 +26,11 @@ module RottenTomatoes
         end
 
         ratings_to_import << ratings_hash
+      rescue => e
+        puts "error: #{e.message}"
       end
 
-      puts ratings_to_import
+      puts "Total: #{ratings_to_import.count}"
       puts "Time to complete: #{Time.now - @start_time}"
     end
     
